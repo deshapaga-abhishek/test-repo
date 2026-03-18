@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Calculator</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      background: #1e1e2e;
+      font-family: sans-serif;
+    }
+    .calc {
+      background: #2a2a3d;
+      border-radius: 16px;
+      padding: 24px;
+      width: 280px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    }
+    .display {
+      background: #13131f;
+      border-radius: 8px;
+      padding: 16px;
+      text-align: right;
+      margin-bottom: 16px;
+    }
+    .display .expr {
+      color: #888;
+      font-size: 14px;
+      min-height: 18px;
+    }
+    .display .result {
+      color: #fff;
+      font-size: 32px;
+      font-weight: bold;
+      word-break: break-all;
+    }
+    .error { color: #f38ba8; font-size: 14px; }
+    .buttons {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+    }
+    button {
+      padding: 18px 0;
+      border: none;
+      border-radius: 8px;
+      font-size: 18px;
+      cursor: pointer;
+      transition: opacity 0.1s;
+    }
+    button:active { opacity: 0.7; }
+    .btn-num  { background: #3b3b52; color: #fff; }
+    .btn-op   { background: #7c7cda; color: #fff; }
+    .btn-eq   { background: #a6e3a1; color: #1e1e2e; font-weight: bold; }
+    .btn-clr  { background: #f38ba8; color: #1e1e2e; font-weight: bold; }
+    .span2    { grid-column: span 2; }
+  </style>
+</head>
+<body>
+<div class="calc">
+  <div class="display">
+    <div class="expr" id="expr"></div>
+    <div class="result" id="result">0</div>
+  </div>
+  <div class="buttons">
+    <button class="btn-clr span2" onclick="clear_()">C</button>
+    <button class="btn-op" onclick="op('/')">÷</button>
+    <button class="btn-op" onclick="op('*')">×</button>
+
+    <button class="btn-num" onclick="digit('7')">7</button>
+    <button class="btn-num" onclick="digit('8')">8</button>
+    <button class="btn-num" onclick="digit('9')">9</button>
+    <button class="btn-op" onclick="op('-')">−</button>
+
+    <button class="btn-num" onclick="digit('4')">4</button>
+    <button class="btn-num" onclick="digit('5')">5</button>
+    <button class="btn-num" onclick="digit('6')">6</button>
+    <button class="btn-op" onclick="op('+')">+</button>
+
+    <button class="btn-num" onclick="digit('1')">1</button>
+    <button class="btn-num" onclick="digit('2')">2</button>
+    <button class="btn-num" onclick="digit('3')">3</button>
+    <button class="btn-eq" style="grid-row: span 2" onclick="calculate()">=</button>
+
+    <button class="btn-num span2" onclick="digit('0')">0</button>
+    <button class="btn-num" onclick="dot()">.</button>
+  </div>
+</div>
+
+<script>
+  let a = '', operator = null, b = '', justCalc = false;
+
+  const exprEl   = document.getElementById('expr');
+  const resultEl = document.getElementById('result');
+
+  const opSym = { '+':'+', '-':'−', '*':'×', '/':'÷' };
+
+  function show(val) { resultEl.textContent = val; resultEl.className = 'result'; }
+  function showErr(msg) { resultEl.textContent = msg; resultEl.className = 'result error'; }
+
+  function digit(d) {
+    if (justCalc) { a = ''; operator = null; b = ''; justCalc = false; }
+    if (operator === null) { a += d; show(a); }
+    else                   { b += d; show(b); }
+    updateExpr();
+  }
+
+  function dot() {
+    if (operator === null) { if (!a.includes('.')) { a += a ? '.' : '0.'; show(a); } }
+    else                   { if (!b.includes('.')) { b += b ? '.' : '0.'; show(b); } }
+    updateExpr();
+  }
+
+  function op(o) {
+    if (a === '') return;
+    if (b !== '') calculate(true);
+    operator = o;
+    justCalc = false;
+    updateExpr();
+  }
+
+  function clear_() { a = ''; operator = null; b = ''; justCalc = false; show('0'); exprEl.textContent = ''; }
+
+  function updateExpr() {
+    exprEl.textContent = a + (operator ? ' ' + opSym[operator] : '') + (b ? ' ' + b : '');
+  }
+
+  async function calculate(chain = false) {
+    if (a === '' || operator === null || b === '') return;
+    try {
+      const res = await fetch('/calculate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ a: parseFloat(a), b: parseFloat(b), op: operator })
+      });
+      const data = await res.json();
+      if (!res.ok) { showErr(data.error); return; }
+      const val = parseFloat(data.result.toPrecision(12)).toString();
+      exprEl.textContent = a + ' ' + opSym[operator] + ' ' + b + ' =';
+      show(val);
+      a = val; b = '';
+      if (!chain) { operator = null; justCalc = true; }
+    } catch {
+      showErr('Error');
+    }
+  }
+</script>
+</body>
+</html>
